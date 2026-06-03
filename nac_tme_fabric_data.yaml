@@ -1,0 +1,295 @@
+# Nexus Dashboard - iBGP VXLAN EVPN Fabric Data Model
+# This file defines the full fabric lifecycle consumed by manage_vxlan_ibgp_fabric.py
+#
+# Supported operations (run with --operation flag):
+#   fabric      - Create the fabric
+#   inventory   - Onboard switches into the fabric
+#   vrfs        - Create VRFs
+#   networks    - Create networks (L2/L3)
+#   attach_vrfs - Attach VRFs to switches
+#   attach_nets - Attach networks to switches (with port assignments)
+#   deploy      - Deploy pending VRF and network configs to switches
+#   interfaces  - Configure switch interfaces
+#   all         - Run all operations in sequence
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Connection & Authentication
+# ──────────────────────────────────────────────────────────────────────────────
+connection:
+  host: 10.15.0.146          # Nexus Dashboard IP or hostname
+  user: admin                 # Username
+  # password: set via --password arg or ND_PASSWORD env var (never store in file)
+  domain: local               # Authentication domain (local, ldap-corp, etc.)
+  verify_ssl: false           # Verify SSL certificates
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Fabric Definition
+# ──────────────────────────────────────────────────────────────────────────────
+fabric:
+  name: nac-tme-fabric
+  category: fabric
+
+  # Telemetry (Fabric-level settings)
+  telemetry_collection: true
+  telemetry_collection_type: outOfBand    # or inBand
+  telemetry_streaming_protocol: ipv4      # or ipv6
+  # telemetry_source_interface: "loopback100"  # only for inBand
+  # telemetry_source_vrf: "management"         # only for inBand
+
+  management:
+    type: vxlanIbgp
+    bgp_asn: "65991"
+    route_reflector_count: 2
+    link_state_routing_protocol: ospf
+    bgp_loopback_ip_range: "10.11.0.0/22"
+    nve_loopback_ip_range: "10.111.100.0/22"
+    intra_fabric_subnet_range: "10.1.0.0/16"
+    l2_vni_range: "30000-49000"
+    l3_vni_range: "50000-59000"
+    network_vlan_range: "2300-2999"
+    vrf_vlan_range: "2000-2299"
+    replication_mode: multicast
+    multicast_group_subnet: "239.1.1.0/25"
+    rendezvous_point_count: 2
+    anycast_rendezvous_point_ip_range: "10.254.254.0/24"
+    vpc_peer_link_vlan: "3600"
+    vpc_peer_keep_alive_option: management
+    vpc_domain_id_range: "1-1000"
+    fabric_mtu: 9216
+    l2_host_interface_mtu: 9216
+    anycast_gateway_mac: "1234.5678.9000"
+    bgp_loopback_id: 0
+    nve_loopback_id: 1
+    rendezvous_point_loopback_id: 254
+    # DNS
+    dns_collection:
+      - "10.1.1.10"
+      - "10.1.1.11"
+    dns_vrf_collection:
+      - "management"
+
+    # NTP
+    ntp_server_collection:
+      - "10.1.1.20"
+      - "10.1.1.21"
+    ntp_server_vrf_collection:
+      - "management"
+    # Inband management
+    inband_management: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Switch Inventory - Onboard switches into the fabric
+# ──────────────────────────────────────────────────────────────────────────────
+inventory:
+  # Credentials used for switch discovery (if not per-switch)
+  username: admin
+  password: "cisco.123!"     # Switch login credentials (not ND credentials)
+  preserve_config: false      # Keep existing switch config after import
+  platform_type: nx-os       # nx-os, ios-xe, ios-xr, other
+
+  switches:
+    - hostname: nac-s1
+      ip: 10.15.255.69
+      model: N9K-C93600CD-GX
+      serial_number: FDO27020W5V
+      software_version: "10.6(3)"
+      switch_role: spine
+
+    - hostname: nac-s2
+      ip: 10.15.255.70
+      model: N9K-C93600CD-GX
+      serial_number: FDO27022EWY
+      software_version: "10.6(3)"
+      switch_role: spine
+
+    - hostname: nac-l1
+      ip: 10.15.255.71
+      model: N9K-C93180YC-FX3
+      serial_number: FLM27170JC2
+      software_version: "10.6(3)"
+      switch_role: leaf
+
+    - hostname: nac-l2
+      ip: 10.15.255.72
+      model: N9K-C93180YC-FX3
+      serial_number: FLM27170JCP
+      software_version: "10.6(3)"
+      switch_role: leaf
+
+    - hostname: nac-l3
+      ip: 10.15.255.73
+      model: N9K-C93180YC-FX3
+      serial_number: FLM271702LT
+      software_version: "10.6(3)"
+      switch_role: leaf
+
+    - hostname: nac-l4
+      ip: 10.15.255.74
+      model: N9K-C93180YC-FX3
+      serial_number: FLM27170JGZ
+      software_version: "10.6(3)"
+      switch_role: leaf
+
+    - hostname: nac-l5
+      ip: 10.15.255.75
+      model: N9K-C93240YC-FX2
+      serial_number: FDO22382K01
+      software_version: "10.6(3)"
+      switch_role: border
+
+    - hostname: nac-l6
+      ip: 10.15.255.76
+      model: N9K-C93240YC-FX2
+      serial_number: FDO223713A3
+      software_version: "10.6(3)"
+      switch_role: border
+
+    # Valid switch_role values:
+    #   leaf, spine, border, borderGateway, borderSpine,
+    #   borderGatewaySpine, superSpine, tier2Leaf, tor, access
+
+# ──────────────────────────────────────────────────────────────────────────────
+# VRFs - Create overlay VRFs
+# ──────────────────────────────────────────────────────────────────────────────
+vrfs:
+  - vrf_name: CiscoLive01
+    # vrf_type: vxlanIbgp
+    vrf_id: 51001           # Auto-allocated if omitted
+    vlan_id: 2101           # Auto-allocated if omitted
+    core_data:
+      vrf_description: "Cisco Live 01 VRF"
+      mtu: 9216
+      max_bgp_paths: 1
+      max_ibgp_paths: 2
+      routing_tag: 12345
+
+  # - vrf_name: Tenant-2
+  #   vrf_type: vxlanIbgp
+  #   core_data:
+  #     vrf_description: "Development tenant VRF"
+  #     mtu: 9216
+
+# # ──────────────────────────────────────────────────────────────────────────────
+# # Networks - Create L2/L3 overlay networks within VRFs
+# # ──────────────────────────────────────────────────────────────────────────────
+# networks:
+#   - network_name: Web-Net
+#     vrf_name: Tenant-1
+#     network_type: vxlanIbgp
+#     # network_id: 30001      # L2 VNI - auto-allocated if omitted
+#     # vlan_id: 2301          # Auto-allocated if omitted
+#     l3_data:
+#       gateway_ipv4_address: "192.168.10.1/24"
+#       mtu: 9216
+#       arp_suppression: true
+
+#   - network_name: App-Net
+#     vrf_name: Tenant-1
+#     network_type: vxlanIbgp
+#     l3_data:
+#       gateway_ipv4_address: "192.168.20.1/24"
+#       mtu: 9216
+#       arp_suppression: true
+
+#   - network_name: DB-Net
+#     vrf_name: Tenant-2
+#     network_type: vxlanIbgp
+#     l3_data:
+#       gateway_ipv4_address: "192.168.30.1/24"
+#       mtu: 9216
+
+# # ──────────────────────────────────────────────────────────────────────────────
+# # VRF Attachments - Attach VRFs to switches
+# # ──────────────────────────────────────────────────────────────────────────────
+vrf_attachments:
+  - vrf_name: CiscoLive01
+    switches:
+      - switch_id: FLM271702LT      # nac-l3 serial number
+        # vlan_id: 2000              # VRF VLAN (auto-allocated if omitted)
+        attach: true
+        # instance_values:         # Optional per-switch overrides
+        #   loopback_id: 100
+        #   loopback_ipv4_address: "10.100.0.1"
+#
+#       - switch_id: FDO12345679     # leaf-2 serial number
+#         vlan_id: 2000
+#         attach: true
+#
+#   - vrf_name: Tenant-2
+#     switches:
+#       - switch_id: FDO12345678
+#         attach: true
+#       - switch_id: FDO12345679
+#         attach: true
+
+# # ──────────────────────────────────────────────────────────────────────────────
+# # Network Attachments - Attach networks to switches with port assignments
+# # ──────────────────────────────────────────────────────────────────────────────
+# network_attachments:
+#   - network_name: Web-Net
+#     switches:
+#       - switch_id: FDO12345678     # leaf-1
+#         vlan_id: 2301              # Network VLAN (auto-allocated if omitted)
+#         attach: true
+#         interfaces:                # Port assignments for this network
+#           - interface_range: "Ethernet1/10"
+#             mode: access
+#           - interface_range: "Ethernet1/11"
+#             mode: access
+#
+#       - switch_id: FDO12345679     # leaf-2
+#         attach: true
+#         interfaces:
+#           - interface_range: "Ethernet1/10"
+#             mode: access
+#
+#   - network_name: App-Net
+#     switches:
+#       - switch_id: FDO12345678
+#         attach: true
+#         interfaces:
+#           - interface_range: "Ethernet1/20"
+#             mode: trunk
+#             native_vlan: false
+#
+#   - network_name: DB-Net
+#     switches:
+#       - switch_id: FDO12345678
+#         attach: true
+#         # No interfaces = attach without specific port bindings
+
+# # ──────────────────────────────────────────────────────────────────────────────
+# # Deploy - Push pending VRF and network configs to switches
+# # ──────────────────────────────────────────────────────────────────────────────
+# deploy:
+#   vrf_names:
+#     - Tenant-1
+#     - Tenant-2
+#   # vrf_switch_ids:            # Omit to deploy to all attached switches
+#   #   - FDO12345678
+#   #   - FDO12345679
+#   network_names:
+#     - Web-Net
+#     - App-Net
+#     - DB-Net
+#   # network_switch_ids:        # Omit to deploy to all attached switches
+#   #   - FDO12345678
+#   #   - FDO12345679
+
+# # ──────────────────────────────────────────────────────────────────────────────
+# # Interfaces - Configure switch interfaces
+# # ──────────────────────────────────────────────────────────────────────────────
+# interfaces:
+#   - switch_serial: FDO12345678    # leaf-1
+#     ethernet:
+#       - name: Ethernet1/1
+#         mode: access               # access or trunk
+#         access_vlan: 2301          # VLAN for access mode
+#         admin_state: true
+#         description: "Web server port"
+
+#       - name: Ethernet1/2
+#         mode: trunk
+#         trunk_allowed_vlans: "2301-2302"
+#         admin_state: true
+#         description: "Uplink to aggregation"
