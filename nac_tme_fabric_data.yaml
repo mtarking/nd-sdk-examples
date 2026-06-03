@@ -152,10 +152,10 @@ inventory:
 # VRFs - Create overlay VRFs
 # ──────────────────────────────────────────────────────────────────────────────
 vrfs:
-  - vrf_name: CiscoLive01
+  - vrf_name: PythonSDK-VRF01
     # vrf_type: vxlanIbgp
-    vrf_id: 51001           # Auto-allocated if omitted
-    vlan_id: 2101           # Auto-allocated if omitted
+    vrf_id: 10000           # Auto-allocated if omitted
+    vlan_id: 1000           # Auto-allocated if omitted
     core_data:
       vrf_description: "Cisco Live 01 VRF"
       mtu: 9216
@@ -163,25 +163,25 @@ vrfs:
       max_ibgp_paths: 2
       routing_tag: 12345
 
-  # - vrf_name: Tenant-2
-  #   vrf_type: vxlanIbgp
-  #   core_data:
-  #     vrf_description: "Development tenant VRF"
-  #     mtu: 9216
+#   - vrf_name: Tenant-2
+#     vrf_type: vxlanIbgp
+#     core_data:
+#       vrf_description: "Development tenant VRF"
+#       mtu: 9216
 
-# # ──────────────────────────────────────────────────────────────────────────────
-# # Networks - Create L2/L3 overlay networks within VRFs
-# # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Networks - Create L2/L3 overlay networks within VRFs
+# ──────────────────────────────────────────────────────────────────────────────
 # networks:
-#   - network_name: Web-Net
-#     vrf_name: Tenant-1
-#     network_type: vxlanIbgp
-#     # network_id: 30001      # L2 VNI - auto-allocated if omitted
-#     # vlan_id: 2301          # Auto-allocated if omitted
+#   - network_name: PythonSDK-Net01
+#     vrf_name: PythonSDK-VRF01
+#     # network_type: vxlanIbgp
+#     network_id: 11111      # L2 VNI - auto-allocated if omitted
+#     vlan_id: 1111          # Auto-allocated if omitted
 #     l3_data:
 #       gateway_ipv4_address: "192.168.10.1/24"
 #       mtu: 9216
-#       arp_suppression: true
+#       # arp_suppression: true
 
 #   - network_name: App-Net
 #     vrf_name: Tenant-1
@@ -198,11 +198,11 @@ vrfs:
 #       gateway_ipv4_address: "192.168.30.1/24"
 #       mtu: 9216
 
-# # ──────────────────────────────────────────────────────────────────────────────
-# # VRF Attachments - Attach VRFs to switches
-# # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# VRF Attachments - Attach VRFs to switches
+# ──────────────────────────────────────────────────────────────────────────────
 vrf_attachments:
-  - vrf_name: CiscoLive01
+  - vrf_name: PythonSDK-VRF01
     switches:
       - switch_id: FLM271702LT      # nac-l3 serial number
         # vlan_id: 2000              # VRF VLAN (auto-allocated if omitted)
@@ -210,10 +210,9 @@ vrf_attachments:
         # instance_values:         # Optional per-switch overrides
         #   loopback_id: 100
         #   loopback_ipv4_address: "10.100.0.1"
-#
-#       - switch_id: FDO12345679     # leaf-2 serial number
-#         vlan_id: 2000
-#         attach: true
+
+      - switch_id: FLM27170JGZ     # nac-l4 serial number
+        attach: true
 #
 #   - vrf_name: Tenant-2
 #     switches:
@@ -222,27 +221,25 @@ vrf_attachments:
 #       - switch_id: FDO12345679
 #         attach: true
 
-# # ──────────────────────────────────────────────────────────────────────────────
-# # Network Attachments - Attach networks to switches with port assignments
-# # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Network Attachments - Attach networks to switches with port assignments
+# ──────────────────────────────────────────────────────────────────────────────
 # network_attachments:
-#   - network_name: Web-Net
+#   - network_name: PythonSDK-Net01
 #     switches:
-#       - switch_id: FDO12345678     # leaf-1
-#         vlan_id: 2301              # Network VLAN (auto-allocated if omitted)
+#       - switch_id: FLM271702LT     # nac-l3
+#         # vlan_id: 2301              # Network VLAN (auto-allocated if omitted)
 #         attach: true
 #         interfaces:                # Port assignments for this network
-#           - interface_range: "Ethernet1/10"
-#             mode: access
 #           - interface_range: "Ethernet1/11"
-#             mode: access
-#
-#       - switch_id: FDO12345679     # leaf-2
+#             mode: trunk
+
+#       - switch_id: FLM27170JGZ     # nac-l4
 #         attach: true
 #         interfaces:
-#           - interface_range: "Ethernet1/10"
-#             mode: access
-#
+#           - interface_range: "Ethernet1/11"
+#             mode: trunk
+
 #   - network_name: App-Net
 #     switches:
 #       - switch_id: FDO12345678
@@ -258,9 +255,9 @@ vrf_attachments:
 #         attach: true
 #         # No interfaces = attach without specific port bindings
 
-# # ──────────────────────────────────────────────────────────────────────────────
-# # Deploy - Push pending VRF and network configs to switches
-# # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Deploy - Push pending VRF and network configs to switches
+# ──────────────────────────────────────────────────────────────────────────────
 # deploy:
 #   vrf_names:
 #     - Tenant-1
@@ -276,9 +273,9 @@ vrf_attachments:
 #   #   - FDO12345678
 #   #   - FDO12345679
 
-# # ──────────────────────────────────────────────────────────────────────────────
-# # Interfaces - Configure switch interfaces
-# # ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# Interfaces - Configure switch interfaces
+# ──────────────────────────────────────────────────────────────────────────────
 # interfaces:
 #   - switch_serial: FDO12345678    # leaf-1
 #     ethernet:

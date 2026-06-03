@@ -557,6 +557,16 @@ def op_attach_networks(client, data: dict):
             return None
         raise
 
+    # Print per-attachment results from 207 multi-status response
+    if result and hasattr(result, 'results') and result.results:
+        for r in result.results:
+            status_str = r.status.value if hasattr(r, 'status') and r.status else "unknown"
+            name = getattr(r, 'network_name', None) or getattr(r, 'vrf_name', None) or "?"
+            switch = getattr(r, 'switch_id', None) or getattr(r, 'switch_name', None) or "?"
+            msg = f"    {name} -> {switch}: {status_str}"
+            if hasattr(r, 'message') and r.message:
+                msg += f" ({r.message})"
+            print(msg)
     print(f"  {len(attachment_objects)} network attachment(s) submitted in '{fabric_name}'.")
     return result
 
